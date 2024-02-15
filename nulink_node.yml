@@ -1,0 +1,215 @@
+---
+- name: Manage a NuLink node
+  hosts: localhost
+  become: true
+  vars_prompt:
+    - name: node_action
+      prompt: "Enter the action to perform (install, update, remove)"
+      private: no
+    - name: keystore_password
+      prompt: "Enter your keystore password"
+      private: yes
+    - name: eth_password
+      prompt: "Enter your Ethereum account password"
+      private: yes
+
+  tasks:
+    - name: Install system dependencies
+      ansible.builtin.apt:
+        update_cache: yes
+        name:
+          - curl
+          - git
+          - wget
+          - software-properties-common
+          - apt-transport-https
+          - ca-certificates
+          - gnupg
+          - lsb-release
+          - python3-pip
+        state: present
+      when: node_action == "install" or  node_action == "update"
+
+    - name: Install Docker and Docker Compose
+      block:
+        - name: Add Docker’s official GPG key
+          ansible.builtin.apt_key:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            state: present
+          when: node_action == "install"  
+
+        - name: Set up the Docker repository
+          ansible.builtin.apt_repository:
+            repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+            state: present
+          when: node_action == "install"  or  node_action == "update"
+
+        - name: Install Docker Engine and Docker Compose
+          ansible.builtin.apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-compose-plugin
+            state: latest
+          when: node_action == "install"  or  node_action == "update"
+
+        - name: Ensure Docker service is started and enabled
+          ansible.builtin.service:
+            name: docker
+            state: started
+            enabled: yes
+          when: node_action == "install" or  node_action == "update" 
+
+    - name: Remove existing keystore directory
+      ansible.builtin.file:
+        path: "/root/keystore"
+        state: absent
+      when: node_action == "install"
+
+    - name: Remove existing NuLink directory
+      ansible.builtin.file:
+        path: "/root/nulink"
+        state: absent
+      when: node_action == "install"
+
+    - name: Create NuLink directory
+      ansible.builtin.file:
+        path: /root/nulink
+        state: directory
+        mode: '0777'  # Set permissions to 777
+      when: node_action == "install"
+
+    - name: Install Geth and create Ethereum account
+      block:
+        - name: Download and install Geth
+          ansible.builtin.shell: |
+            wget https://gethstore.blob.core.windows.net/builds/geth-linux-amd64-1.10.0-1c0cae93.tar.gz
+            tar -xzf geth-linux-amd64-1.10.0-1c0cae93.tar.gz
+            mv geth-linux-amd64-1.10.0-1c0cae93/geth /usr/local/bin/
+            rm -rf geth-linux-amd64-1.10.0-1c0cae93*
+          when: node_action == "install"
+
+        - name: Create Ethereum account
+          ansible.builtin.expect:
+            command: geth account new --keystore /root/keystore
+            responses:
+              "Password:": "{{ keystore_password }}"
+              "Repeat password:": "{{ keystore_password }}"
+            timeout: 60
+          register: ethereum_account_creation
+          no_log: true
+          when: node_action == "install"
+
+    - name: Pull NuLink Docker image
+      ansible.builtin.docker_image:
+        name: nulink/nulink:latest
+        source: pull
+      when: node_action == "install"
+
+    - name: Create NuLink directory and copy keystore file
+      block:
+        - name: Create NuLink directory
+          ansible.builtin.file:
+            path: /root/nulink
+            state: directory
+          when: node_action == "install"  
+
+        - name: Find keystore files
+          ansible.builtin.find:
+            paths: "/root/keystore"
+            patterns: "UTC--*"
+            register: found_keystore_files
+          when: node_action == "install"
+
+        - name: Sort keystore files by modification time
+          set_fact:
+            latest_keystore_file: "{{ found_keystore_files.files | sort(attribute='mtime') | last }}"
+          when: 
+              - found_keystore_files is defined
+              - found_keystore_files.files | length > 0
+              - node_action == "install"
+
+        - name: Copy the latest keystore file
+          ansible.builtin.copy:
+            src: "{{ latest_keystore_file.path }}"
+            dest: "/root/nulink/"
+          when: latest_keystore_file is defined and node_action == "install"
+
+        
+        - name: Save public wallet address to file
+          ansible.builtin.copy:
+            content: "{{ ethereum_account_creation.stdout }}"
+            dest: /root/nulink/wallet_address.txt
+          when: node_action == "install"
+   
+    - name: Extract keystore file name
+      set_fact:
+        keystore_file_name: "{{ keystore_file.files | map(attribute='path') | map('basename') | first }}"
+      when: node_action == "install" and keystore_file.files | length > 0
+
+
+    - name: Read public wallet address
+      ansible.builtin.shell: grep -oP '^Public address of the key:\s+\K0x[a-fA-F0-9]+' /root/nulink/wallet_address.txt
+      register: wallet_address
+      when: node_action == "install"
+
+    - name: Generate NuLink node initialization script from template
+      ansible.builtin.template:
+        src: init_nulink_node.j2
+        dest: /root/nulink/init_nulink_node.sh
+        mode: '0755'
+      when: node_action == "install"
+
+
+    - name: Create NuLink service using Docker
+      ansible.builtin.template:
+        src: nulink-node.service.j2
+        dest: /etc/systemd/system/nulink-node.service
+        #vars:
+          #keystore_password: "{{ keystore_password }}"
+          #eth_password: "{{ eth_password }}"
+      when: node_action == "install"
+
+
+    - name: Reload systemd to pick up nulink service
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      when: node_action == "install"
+
+    - name: Stop NuLink Docker container for update
+      ansible.builtin.docker_container:
+        name: ursula
+        state: absent
+      when: node_action == "update"
+
+    - name: Pull latest NuLink Docker image for update
+      ansible.builtin.docker_image:
+        name: nulink/nulink:latest
+        source: pull
+      when: node_action == "update"
+  
+    - name: Enable and start nulink service
+      ansible.builtin.systemd:
+        name: nulink-node
+        enabled: yes
+        state: restarted
+      when: node_action == "update"
+  
+    - name: Remove NuLink node
+      block:
+        - name: Stop and remove NuLink Docker container
+          ansible.builtin.docker_container:
+            name: ursula
+            state: absent
+
+        - name: Remove NuLink directory
+          ansible.builtin.file:
+            path: /root/nulink
+            state: absent
+
+        - name: Remove NuLink keystore directory
+          ansible.builtin.file:
+            path: /root/keystore
+            state: absent    
+      when: node_action == "remove"      

@@ -1,0 +1,23 @@
+[Unit]
+Description=NuLink Node Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+ExecStartPre=-/usr/bin/docker rm -f ursula
+Environment="NULINK_KEYSTORE_PASSWORD={{ keystore_password }}"
+Environment="NULINK_OPERATOR_ETH_PASSWORD={{ eth_password }}"
+ExecStart=/usr/bin/docker run --name ursula \
+  -p 9151:9151 \
+  -v /root/nulink:/code \
+  -v /root/nulink:/home/circleci/.local/share/nulink \
+  -e NULINK_KEYSTORE_PASSWORD="${NULINK_KEYSTORE_PASSWORD}" \
+  -e NULINK_OPERATOR_ETH_PASSWORD="${NULINK_OPERATOR_ETH_PASSWORD}" \
+  nulink/nulink:latest nulink ursula run --no-block-until-ready
+ExecStop=/usr/bin/docker stop ursula
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
