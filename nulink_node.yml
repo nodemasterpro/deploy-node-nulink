@@ -120,9 +120,9 @@
           set_fact:
             latest_keystore_file: "{{ found_keystore_files.files | sort(attribute='mtime') | last }}"
           when: 
+              - node_action == "install"
               - found_keystore_files is defined
               - found_keystore_files.files | length > 0
-              - node_action == "install"
 
         - name: Copy the latest keystore file
           ansible.builtin.copy:
