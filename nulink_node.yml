@@ -37,6 +37,17 @@
         msg: "Please install Docker and Docker Compose by following the documentation here: https://docs.docker.com/engine/install/ubuntu/"
       when: docker_version.rc != 0
 
+    - name: Install system dependencies
+      ansible.builtin.apt:
+        update_cache: yes
+        name:
+          - curl
+          - git
+          - wget
+          - python3-pip
+        state: present
+      when: node_action == "install" or  node_action == "update"
+
     - name: Remove existing keystore directory
       ansible.builtin.file:
         path: "/root/keystore"
