@@ -32,16 +32,10 @@
       failed_when: docker_version.rc != 0
       ignore_errors: yes
 
-    - name: Check if Docker Compose is installed
-      command: docker-compose --version
-      register: docker_compose_version
-      failed_when: docker_compose_version.rc != 0
-      ignore_errors: yes
-
     - name: Fail with message if Docker or Docker Compose is not installed
       fail:
         msg: "Please install Docker and Docker Compose by following the documentation here: https://docs.docker.com/engine/install/ubuntu/"
-      when: docker_version.rc != 0 or docker_compose_version.rc != 0  
+      when: docker_version.rc != 0
 
     - name: Install system dependencies
       ansible.builtin.apt:
