@@ -73,8 +73,8 @@
         - name: Download and install Geth
           ansible.builtin.shell: |
             wget https://gethstore.blob.core.windows.net/builds/geth-linux-amd64-1.13.12-02eb36af.tar.gz
-            tar -xzf geth-linux-amd64-1.10.0-1c0cae93.tar.gz
-            mv geth-linux-amd64-1.10.0-1c0cae93/geth /usr/local/bin/
+            tar -xzf geth-linux-amd64-1.13.12-02eb36af.tar.gz
+            mv geth-linux-amd64-1.13.12-02eb36af/geth /usr/local/bin/
             rm -rf geth-linux-amd64-1.10.0-1c0cae93*
           when: node_action == "install"
 
