@@ -45,6 +45,7 @@
           - git
           - wget
           - python3-pip
+          - python3-pexpect
         state: present
       when: node_action == "install" or  node_action == "update"
 
