@@ -113,7 +113,7 @@
           ansible.builtin.find:
             paths: "/root/keystore"
             patterns: "UTC--*"
-            register: found_keystore_files
+          register: found_keystore_files
           when: node_action == "install"
 
         - name: Sort keystore files by modification time
