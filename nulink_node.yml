@@ -130,18 +130,16 @@
             dest: "/root/nulink/"
           when: latest_keystore_file is defined and node_action == "install"
 
-        
         - name: Save public wallet address to file
           ansible.builtin.copy:
             content: "{{ ethereum_account_creation.stdout }}"
             dest: /root/nulink/wallet_address.txt
           when: node_action == "install"
    
-    - name: Extract keystore file name
-      set_fact:
-        keystore_file_name: "{{ keystore_file.files | map(attribute='path') | map('basename') | first }}"
-      when: node_action == "install" and keystore_file.files | length > 0
-
+        - name: Extract keystore file name
+          set_fact:
+            keystore_file_name: "{{ found_keystore_files.files | map(attribute='path') | map('basename') | first }}"
+          when: node_action == "install" and found_keystore_files.files | length > 0
 
     - name: Read public wallet address
       ansible.builtin.shell: grep -oP '^Public address of the key:\s+\K0x[a-fA-F0-9]+' /root/nulink/wallet_address.txt
