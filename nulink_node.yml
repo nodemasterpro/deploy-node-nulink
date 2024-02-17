@@ -49,6 +49,12 @@
         state: present
       when: node_action == "install" or  node_action == "update"
 
+    - name: Install Docker SDK for Python
+      ansible.builtin.pip:
+        name: docker
+        state: present
+      when: node_action == "install" or node_action == "update"  
+
     - name: Remove existing keystore directory
       ansible.builtin.file:
         path: "/root/keystore"
