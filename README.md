@@ -32,7 +32,20 @@ ansible-playbook nulink_node.yml
 ```
 Ensure you're running the playbook with root privileges or via a user with sudo access.
 
-##  Step 4: Managing the Nulink Node
+## Step 3: Executing the Playbook
+Run the playbook using the following command. You'll be prompted to specify the action (install, update, or remove):
+```
+ansible-playbook nulink_node.yml
+```
+Ensure you're running the playbook with root privileges or via a user with sudo access.
+
+## Step 4: NuLink Node Initialization
+
+Open a terminal on your server and execute the following script:
+sh /root/nulink/init_nulink_node.sh
+You will be prompted to answer several questions to configure your node.
+
+##  Step 5: Managing the Nulink Node
 
 Starting Services
 After a manual node initialization, start the NuLink node service:
@@ -48,14 +61,14 @@ To stop the NuLink node service:
 sudo systemctl stop nulink-node
 ```
 
-## Step 5: Viewing Logs
+## Step 6: Viewing Logs
 To view the logs for the NuLink node:
 
 ```
 journalctl -u nulink-node -f -o cat
 ```
 
-## Step 5: Update Procedure
+## Step 7: Update Procedure
 To update your NuLink node, execute the playbook with the update action. This will pull the latest Docker image of the NuLink node and restart the service:
 
 ```

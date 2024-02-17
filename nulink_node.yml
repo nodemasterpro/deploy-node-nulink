@@ -14,6 +14,35 @@
       private: yes
 
   tasks:
+    - name: Check if running as root
+      ansible.builtin.command: id -u
+      register: uid
+      changed_when: false
+      ignore_errors: true
+      check_mode: false
+
+    - name: Fail if not running as root
+      ansible.builtin.fail:
+        msg: "This playbook must be run as root."
+      when: uid.stdout != "0"
+
+    - name: Check if Docker is installed
+      command: docker --version
+      register: docker_version
+      failed_when: docker_version.rc != 0
+      ignore_errors: yes
+
+    - name: Check if Docker Compose is installed
+      command: docker-compose --version
+      register: docker_compose_version
+      failed_when: docker_compose_version.rc != 0
+      ignore_errors: yes
+
+    - name: Fail with message if Docker or Docker Compose is not installed
+      fail:
+        msg: "Please install Docker and Docker Compose by following the documentation here: https://docs.docker.com/engine/install/ubuntu/"
+      when: docker_version.rc != 0 or docker_compose_version.rc != 0  
+
     - name: Install system dependencies
       ansible.builtin.apt:
         update_cache: yes
@@ -29,37 +58,6 @@
           - python3-pip
         state: present
       when: node_action == "install" or  node_action == "update"
-
-    - name: Install Docker and Docker Compose
-      block:
-        - name: Add Docker’s official GPG key
-          ansible.builtin.apt_key:
-            url: https://download.docker.com/linux/ubuntu/gpg
-            state: present
-          when: node_action == "install"  
-
-        - name: Set up the Docker repository
-          ansible.builtin.apt_repository:
-            repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
-            state: present
-          when: node_action == "install"  or  node_action == "update"
-
-        - name: Install Docker Engine and Docker Compose
-          ansible.builtin.apt:
-            name:
-              - docker-ce
-              - docker-ce-cli
-              - containerd.io
-              - docker-compose-plugin
-            state: latest
-          when: node_action == "install"  or  node_action == "update"
-
-        - name: Ensure Docker service is started and enabled
-          ansible.builtin.service:
-            name: docker
-            state: started
-            enabled: yes
-          when: node_action == "install" or  node_action == "update" 
 
     - name: Remove existing keystore directory
       ansible.builtin.file:
