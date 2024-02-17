@@ -85,7 +85,7 @@
               "Repeat password:": "{{ keystore_password }}"
             timeout: 60
           register: ethereum_account_creation
-          no_log: true
+          #no_log: true
           when: node_action == "install"
 
     - name: Pull NuLink Docker image
