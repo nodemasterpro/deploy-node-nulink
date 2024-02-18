@@ -42,7 +42,9 @@ Ensure you're running the playbook with root privileges or via a user with sudo 
 ## Step 4: NuLink Node Initialization
 
 Open a terminal on your server and execute the following script:
+```
 sh /root/nulink/init_nulink_node.sh
+```
 You will be prompted to answer several questions to configure your node.
 
 ##  Step 5: Managing the Nulink Node
